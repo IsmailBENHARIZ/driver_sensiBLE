@@ -3,7 +3,7 @@ import subprocess
 import socket
 import urllib
 import os
-import ConfigParser
+import configparser
 import subprocess as sp
 os.system('sudo systemctl start bluetooth')
 import pygatt
@@ -40,12 +40,13 @@ def getserial():
 
 
 global id,client,a,b,c,d,e,f,g,h,i,j,topic
-config = ConfigParser.RawConfigParser()
+config = configparser.RawConfigParser()
 config.read('mqtt.conf')
 id = getserial()
 topic = config.get('MQTT','topic')
 broker_address = config.get('MQTT','broker_address')
 client = mqtt.Client(id)
+client.tls_set("ca.crt")
 client.username_pw_set(config.get('MQTT','username'), config.get('MQTT','password'))
 client.connect(broker_address)
 
@@ -128,6 +129,7 @@ def Mic_Level(handle, value):
 while 1:
     cont = 1
     client.connect(broker_address)
+    client.loop_start()
 
     connectedWifi = whichConnectedWifi()
 
@@ -172,11 +174,16 @@ while 1:
             stdoutdata = sp.getoutput("hcitool con")
             if not uuid.upper() in stdoutdata.split() or connectedWifi != whichConnectedWifi():
                  print("not connected")
+                 client.loop_stop()
+                 client.disconnect()
                  cont = 0
             else:
                  print("connected")
     except:
+        print("error")
         myData={"error":"Couldn't connect to the sensiBLE"}
         client.publish(topic, str(myData))
+        client.loop_stop()
+        client.disconnect()
     finally:
         adapter.stop()
