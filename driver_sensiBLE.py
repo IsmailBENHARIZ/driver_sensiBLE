@@ -3,6 +3,7 @@ import subprocess
 import socket
 import urllib
 import os
+import ConfigParser
 import subprocess as sp
 os.system('sudo systemctl start bluetooth')
 import pygatt
@@ -39,11 +40,13 @@ def getserial():
 
 
 global id,client,a,b,c,d,e,f,g,h,i,j,topic
+config = ConfigParser.RawConfigParser()
+config.read('mqtt.conf')
 id = getserial()
-topic = "sensiLogger"
-broker_address="udpmqttserver.ddns.net"
+topic = config.get('MQTT','topic')
+broker_address = config.get('MQTT','broker_address')
 client = mqtt.Client(id)
-client.username_pw_set("Ismail_BenHariz", "DeVinci2018")
+client.username_pw_set(config.get('MQTT','username'), config.get('MQTT','password'))
 client.connect(broker_address)
 
 class ScanDelegate(DefaultDelegate):
@@ -60,8 +63,7 @@ def Luminosity(handle, value):
     global a
     lumHex = str(hexlify(value))
     lum = int(lumHex[8:10] + lumHex[6:8],16)
-    tim = int(round(time.time() * 1000))#int(lumHex[4:6] + lumHex[2:4],16)
-#    print("Luminosity : ", lum, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Luminosity", "id" : id, "timestamp" : tim, "value" : lum}
     client.publish(topic, str(myData))
     a=tim
@@ -69,31 +71,28 @@ def Luminosity(handle, value):
 def Temperature(handle, value):
     temHex = str(hexlify(value))
     tem = int(temHex[8:10] + temHex[6:8],16)/10
-    tim = int(round(time.time() * 1000))#int(temHex[4:6] + temHex[2:4],16)
-#    print("Temperature : ", tem, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Temperature", "id" : id, "timestamp" : tim, "value" : tem}
     client.publish(topic,  str(myData))
 
 def Battery(handle, value):
     batHex = str(hexlify(value))
     bat = int(batHex[12:14] +batHex[10:12],16)/1000
-    tim = int(round(time.time() * 1000))#int(batHex[4:6] + batHex[2:4],16)
-#    print("Battery : ", bat, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Battery", "id" : id, "timestamp" : tim, "value" : bat}
     client.publish(topic,  str(myData))
 
 def Humidity(handle, value):
     humHex = str(hexlify(value))
     hum = int(humHex[8:10] + humHex[6:8],16)/10
-    tim = int(round(time.time() * 1000))#int(humHex[4:6] + humHex[2:4],16)
-#    print("Humidity : ", hum, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Humidity", "id" : id, "timestamp" : tim, "value" : hum}
     client.publish(topic,  str(myData))
   
 def Motion(handle, value):
     motHex = str(hexlify(value))
 
-    tim = int(round(time.time() * 1000))#int(motHex[4:6] + motHex[2:4],16)
+    tim = int(round(time.time() * 1000))
 
     accX = int(motHex[8:10] + motHex[6:8],16)/100
     accY = int(motHex[12:14] + motHex[10:12],16)/100
@@ -107,9 +106,6 @@ def Motion(handle, value):
     magY = int(motHex[36:38] + motHex[34:36],16)/100
     magZ = int(motHex[40:42] + motHex[38:40],16)/100
 
-#    print("Accéléromètre ", accX, accY, accZ)
-#    print("Gyroscope ", gyrX, gyrY, gyrZ)
-#    print("Magnétomètre ", magX, magY, magZ)
     myData={"type":"Accelerometer", "id" : id, "timestamp" : tim, "X" : accX, "Y" : accY, "Z" : accZ}
     client.publish(topic,  str(myData))
     myData={"type":"Gyroscope", "id" : id, "timestamp" : tim, "X" : gyrX, "Y" : gyrY, "Z" : gyrZ}
@@ -120,22 +116,19 @@ def Motion(handle, value):
 def Pressure(handle, value):
     preHex = str(hexlify(value))
     pre = int(preHex[12:14] + preHex[10:12] + preHex[8:10] + preHex[6:8],16)/100
-    tim = int(round(time.time() * 1000))#int(preHex[4:6] + preHex[2:4],16)
-#    print("Pressure : ", pre, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Pressure", "id" : id, "timestamp" : tim, "value" : pre}
     client.publish(topic,  str(myData))
  
 def Mic_Level(handle, value):
     micHex = str(hexlify(value))
     mic = int(micHex[8:10] + micHex[6:8],16)
-    tim = int(round(time.time() * 1000))#int(micHex[4:6] + micHex[2:4],16)
-#    print("Mic_Level : ", mic, tim)
+    tim = int(round(time.time() * 1000))
     myData={"type":"Mic_Level", "id" : id, "timestamp" : tim, "value" : mic}
     client.publish(topic,  str(myData))
  
 while 1:
     cont = 1
-    a=0
     client.connect(broker_address)
 
     connectedWifi = whichConnectedWifi()
@@ -143,7 +136,7 @@ while 1:
     scanner = Scanner().withDelegate(ScanDelegate())
     devices = scanner.scan(10.0)
 
-    uuid = "4D:E0:91:3E:91:CB"
+    uuid = "00:00:00:00:00:00"
 
     for dev in devices:
         print("Device %s (%s), RSSI=%d dB" % (dev.addr, dev.addrType, dev.rssi))
