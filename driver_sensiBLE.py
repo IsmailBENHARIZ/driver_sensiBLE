@@ -60,13 +60,11 @@ class ScanDelegate(DefaultDelegate):
             print("Received new data from", dev.addr)
 
 def Luminosity(handle, value):
-    global a
     lumHex = str(hexlify(value))
     lum = int(lumHex[8:10] + lumHex[6:8],16)
     tim = int(round(time.time() * 1000))
     myData={"type":"Luminosity", "id" : id, "timestamp" : tim, "value" : lum}
     client.publish(topic, str(myData))
-    a=tim
 
 def Temperature(handle, value):
     temHex = str(hexlify(value))
