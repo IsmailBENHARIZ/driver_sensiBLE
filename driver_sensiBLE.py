@@ -14,6 +14,8 @@ from bluepy import btle
 from bluepy.btle import Scanner, DefaultDelegate
 import paho.mqtt.client as mqtt
 
+SEUIL_TEMPERATURE = 35
+
 def whichConnectedWifi():
     networkInfos = subprocess.check_output(['iwgetid']).split()
 
@@ -44,11 +46,18 @@ config = configparser.RawConfigParser()
 config.read('mqtt.conf')
 id = getserial()
 topic = config.get('MQTT','topic')
+secure_topic = config.get('MQTT','secure_topic')
 broker_address = config.get('MQTT','broker_address')
+
 client = mqtt.Client(id)
 client.tls_set("ca.crt")
 client.username_pw_set(config.get('MQTT','username'), config.get('MQTT','password'))
 client.connect(broker_address)
+
+#secure_client = mqtt.Client(id + "_secure")
+#secure_client.tls_set("ca.crt")
+#secure_client.username_pw_set(config.get('MQTT','username'), config.get('MQTT','password'))
+#secure_client.connect(broker_address)
 
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
@@ -72,14 +81,18 @@ def Temperature(handle, value):
     tem = int(temHex[8:10] + temHex[6:8],16)/10
     tim = int(round(time.time() * 1000))
     myData={"type":"Temperature", "id" : id, "timestamp" : tim, "value" : tem}
-    client.publish(topic,  str(myData))
+
+    if tem>SEUIL_TEMPERATURE:
+        client.publish(secure_topic,str(myData))
+    else:
+        client.publish(topic,str(myData))
 
 def Battery(handle, value):
     batHex = str(hexlify(value))
     bat = int(batHex[12:14] +batHex[10:12],16)/1000
     tim = int(round(time.time() * 1000))
     myData={"type":"Battery", "id" : id, "timestamp" : tim, "value" : bat}
-    client.publish(topic,  str(myData))
+    client.publish(topic,str(myData))
 
 def Humidity(handle, value):
     humHex = str(hexlify(value))
@@ -128,7 +141,10 @@ def Mic_Level(handle, value):
  
 while 1:
     cont = 1
+#    secure_client.connect(broker_address)
     client.connect(broker_address)
+
+#    secure_client.loop_start()
     client.loop_start()
 
     connectedWifi = whichConnectedWifi()
@@ -174,6 +190,8 @@ while 1:
             stdoutdata = sp.getoutput("hcitool con")
             if not uuid.upper() in stdoutdata.split() or connectedWifi != whichConnectedWifi():
                  print("not connected")
+#                 secure_client.loop_stop()
+#                 secure_client.disconnect()
                  client.loop_stop()
                  client.disconnect()
                  cont = 0
@@ -183,6 +201,8 @@ while 1:
         print("error")
         myData={"error":"Couldn't connect to the sensiBLE"}
         client.publish(topic, str(myData))
+#        secure_client.loop_stop()
+#        secure_client.disconnect()
         client.loop_stop()
         client.disconnect()
     finally:
